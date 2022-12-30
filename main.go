@@ -15,7 +15,7 @@ func main() {
 	log.Info("verbose logs enabled")
 	log.SetLevel(log.DebugLevel)
 
-	discord, err := discordgo.New("Bot " + os.Getenv("BITVERSE_NFT_BOT_AUTH_TOKEN"))
+	dg, err := discordgo.New("Bot " + os.Getenv("BITVERSE_NFT_BOT_AUTH_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
@@ -26,15 +26,18 @@ func main() {
 	}
 	defer cm.Stop()
 
-	botUser, err := discord.User("@me")
+	botUser, err := dg.User("@me")
 	if err != nil {
 		log.Panic(err)
 	}
 
-	createMessageHandler := create_message.NewBaseMessageHandler(cm, botUser)
-	discord.AddHandler(createMessageHandler.HandleMessage)
+	// Listen for server (guild) messages only
+	dg.Identify.Intents = discordgo.IntentsGuildMessages
 
-	if err := discord.Open(); err != nil {
+	createMessageHandler := create_message.NewBaseMessageHandler(cm, botUser)
+	dg.AddHandler(createMessageHandler.HandleMessage)
+
+	if err := dg.Open(); err != nil {
 		log.Panic(err)
 	}
 

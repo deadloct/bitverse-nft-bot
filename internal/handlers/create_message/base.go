@@ -1,17 +1,16 @@
 package create_message
 
 import (
-	"strings"
-
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal"
+	log "github.com/sirupsen/logrus"
 )
 
 type HandlerFunc func(s *discordgo.Session, m *discordgo.MessageCreate)
 
 type BaseMessageHandler struct {
-	handlers map[string]HandlerFunc
 	botUser  *discordgo.User
+	handlers map[string]HandlerFunc
 }
 
 func NewBaseMessageHandler(cm *internal.ClientManager, botUser *discordgo.User) *BaseMessageHandler {
@@ -22,7 +21,10 @@ func NewBaseMessageHandler(cm *internal.ClientManager, botUser *discordgo.User) 
 		"orders": ordersHandler.HandleMessage,
 	}
 
-	return &BaseMessageHandler{handlers: handlers, botUser: botUser}
+	return &BaseMessageHandler{
+		botUser:  botUser,
+		handlers: handlers,
+	}
 }
 
 func (h *BaseMessageHandler) HandleMessage(s *discordgo.Session, m *discordgo.MessageCreate) {
@@ -30,13 +32,16 @@ func (h *BaseMessageHandler) HandleMessage(s *discordgo.Session, m *discordgo.Me
 		return
 	}
 
-	parts := strings.Split(strings.TrimSpace(m.Content), " ")
-	cmd := strings.ToLower(parts[0])
+	if !internal.IsBotCommand(m.Content) {
+		return
+	}
 
-	if _, ok := h.handlers[cmd]; !ok {
+	parts := internal.ParseBotCommand(m.Content)
+	if _, ok := h.handlers[parts[0]]; !ok {
 		s.ChannelMessageSend(m.ChannelID, "Unrecognized command")
 		return
 	}
 
-	h.handlers[cmd](s, m)
+	log.Debugf("processing message: %#v", m.Content)
+	h.handlers[parts[0]](s, m)
 }
