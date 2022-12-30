@@ -1,4 +1,4 @@
-module github.com/deadloct/immutablex-discord-bot
+module github.com/deadloct/bitverse-nft-bot
 
 go 1.18
 

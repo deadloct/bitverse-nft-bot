@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"github.com/deadloct/immutablex-cli/lib/assets"
