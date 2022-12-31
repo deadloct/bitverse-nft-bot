@@ -1,3 +1,5 @@
+.env
 .vscode
 bitverse-nft-bot
 __debug_bin
+k8s/secret.yaml
