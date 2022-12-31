@@ -12,6 +12,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	MaxOrderCount     = 5
+	DefaultOrderCount = 3
+)
+
 type SlashCommands struct {
 	clientsManager     *api.ClientsManager
 	heroesHandler      *handlers.AssetMessageHandler
@@ -100,23 +105,13 @@ func (s *SlashCommands) setupCommands() {
 			},
 		},
 		{
-			Name:        "orders",
-			Description: "Query orders (sales listings, fulfilled orders, etc) by a variety of filters",
+			Name:        "market",
+			Description: "Query market listings",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "collection-addr-sell",
-					Description: "The collection address of a sell order",
-					Required:    false,
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{Name: "Heroes", Value: data.BitVerseCollections["hero"].Address},
-						{Name: "Portals", Value: data.BitVerseCollections["portal"].Address},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "collection-addr-buy",
-					Description: "The collection address of a buy order",
+					Name:        "collection",
+					Description: "The collection of returned listings (default: Heroes)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{Name: "Heroes", Value: data.BitVerseCollections["hero"].Address},
@@ -126,7 +121,7 @@ func (s *SlashCommands) setupCommands() {
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "status",
-					Description: "Status of the order",
+					Description: "Status of the order (Default: Active)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{Name: "Active", Value: "active"},
@@ -138,21 +133,8 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "rarity-buy",
-					Description: "Filter by NFT rarity for a buy order",
-					Required:    false,
-					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{Name: "Common", Value: "Common"},
-						{Name: "Rare", Value: "Rare"},
-						{Name: "Epic", Value: "Epic"},
-						{Name: "Legendary", Value: "Legendary"},
-						{Name: "Mythic", Value: "Mythic"},
-					},
-				},
-				{
-					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "rarity-sell",
-					Description: "Filter by NFT rarity for a sell order",
+					Name:        "rarity",
+					Description: "Filter by NFT rarity (Default: All)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{Name: "Common", Value: "Common"},
@@ -165,21 +147,19 @@ func (s *SlashCommands) setupCommands() {
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "order-by",
-					Description: "Choose the field to sort the results by",
+					Description: "Choose the field to sort the results by (Default: Price)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{Name: "Created At", Value: "created_at"},
 						{Name: "Expired At", Value: "expired_at"},
-						{Name: "Sell Quantity", Value: "sell_quantity"},
-						{Name: "Buy Quantity", Value: "buy_quantity"},
-						{Name: "Buy Quantity With Fees", Value: "buy_quantity_with_fees"},
+						{Name: "Price", Value: "buy_quantity_with_fees"},
 						{Name: "Updated At", Value: "updated_at"},
 					},
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "sort-order",
-					Description: "Sort direction",
+					Name:        "sort-direction",
+					Description: "Sort direction (Default: Ascending)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{Name: "Ascending", Value: "asc"},
@@ -190,6 +170,22 @@ func (s *SlashCommands) setupCommands() {
 					Type:        discordgo.ApplicationCommandOptionString,
 					Name:        "user",
 					Description: "User address that created the order",
+					Required:    false,
+				},
+				{
+					Type: discordgo.ApplicationCommandOptionInteger,
+					Name: "count",
+					Description: fmt.Sprintf(
+						"Return this many records (Default %v, Max: %v)",
+						DefaultOrderCount,
+						MaxOrderCount,
+					),
+					Required: false,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionInteger,
+					Name:        "token-id",
+					Description: "The token ID of the listing",
 					Required:    false,
 				},
 			},
@@ -221,58 +217,79 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		id := options[0].IntValue()
 		response = s.portalsHandler.HandleCommand(fmt.Sprint(id))
 
-	case "orders":
-		// TODO: work out a good way to provide more results without spamming
-		cfg := &orders.ListOrdersConfig{PageSize: 5}
-		buyMetadata := make(map[string][]string)
-		sellMetadata := make(map[string][]string)
+	case "market":
+		cfg := &orders.ListOrdersConfig{
+			PageSize:         DefaultOrderCount,
+			SellTokenAddress: data.BitVerseCollections["hero"].Address,
+			Status:           "active",
+			OrderBy:          "buy_quantity_with_fees",
+			Direction:        "asc",
+		}
+
+		metadata := make(map[string][]string)
 		for _, option := range options {
 			switch option.Name {
-			case "collection-addr-sell":
+			case "collection":
 				cfg.SellTokenAddress = option.StringValue()
-			case "collection-addr-buy":
-				cfg.BuyTokenAddress = option.StringValue()
-			case "status":
-				cfg.Status = option.StringValue()
-			case "rarity-buy":
-				buyMetadata["Rarity"] = []string{option.StringValue()}
-			case "rarity-sell":
-				sellMetadata["Rarity"] = []string{option.StringValue()}
+				if cfg.SellTokenAddress == "" {
+					cfg.SellTokenAddress = data.BitVerseCollections["hero"].Address
+				}
+
+			case "count":
+				pageSize := int(option.IntValue())
+				if pageSize > MaxOrderCount {
+					pageSize = MaxOrderCount
+				} else if pageSize < 1 {
+					pageSize = 1
+				}
+
+				cfg.PageSize = pageSize
+
 			case "order-by":
 				cfg.OrderBy = option.StringValue()
-			case "sort-order":
+				if cfg.OrderBy == "" {
+					cfg.OrderBy = "buy_quantity_with_fees"
+				}
+
+			case "rarity":
+				metadata["Rarity"] = []string{option.StringValue()}
+
+			case "sort-direction":
 				cfg.Direction = option.StringValue()
+				if cfg.Direction == "" {
+					cfg.Direction = "asc"
+				}
+
+			case "status":
+				cfg.Status = option.StringValue()
+				if cfg.Status == "" {
+					cfg.Status = "active"
+				}
+
+			case "token-id":
+				tokenID := option.IntValue()
+				if tokenID > 0 {
+					cfg.SellTokenID = fmt.Sprint(tokenID)
+				}
+
 			case "user":
 				cfg.User = option.StringValue()
+
 			default:
 				continue
 			}
 		}
 
-		if len(buyMetadata) > 0 {
-			data, err := json.Marshal(buyMetadata)
+		if len(metadata) > 0 {
+			data, err := json.Marshal(metadata)
 			if err != nil {
-				log.Errorf("error serializing buy metadata %#v to json: %v", buyMetadata, err)
-			} else {
-				cfg.BuyMetadata = string(data[:])
-			}
-		}
-
-		if len(sellMetadata) > 0 {
-			data, err := json.Marshal(sellMetadata)
-			if err != nil {
-				log.Errorf("error serializing sell metadata %#v to json: %v", sellMetadata, err)
+				log.Errorf("error serializing sell metadata %#v to json: %v", metadata, err)
 			} else {
 				cfg.SellMetadata = string(data[:])
 			}
 		}
 
-		if cfg.BuyTokenAddress == "" && cfg.SellTokenAddress == "" {
-			cfg.SellTokenAddress = data.BitVerseCollections["hero"].Address
-		}
-
 		log.Debugf("Get orders for cfg %#v", cfg)
-
 		response = s.ordersHandler.HandleCommand(cfg)
 
 	default:

@@ -3,13 +3,11 @@ package handlers
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
 	"github.com/deadloct/bitverse-nft-bot/internal/data"
-	"github.com/deadloct/immutablex-cli/lib"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -37,18 +35,29 @@ func (h *AssetMessageHandler) HandleCommand(tokenID string) *discordgo.Interacti
 		return &discordgo.InteractionResponseData{Content: fmt.Sprintf("Could not find a %s with token ID %s", h.col.Singular, tokenID)}
 	}
 
-	url := strings.Join([]string{
-		lib.ImmutascanURL,
-		"address",
-		h.col.Address,
-		tokenID,
-	}, "/")
-	content := fmt.Sprintf("**%s %s**\nLink: %s\nOwner: %s\nStatus: %s", h.col.Singular, tokenID, url, asset.User, asset.Status)
+	title := asset.GetName()
+	if title == "" {
+		title = fmt.Sprintf("%s %s", h.col.Singular, tokenID)
+	}
+
+	url := GetImmutascanAssetURL(h.col.Address, tokenID)
+	collectionURL := GetImmutascanUserURL(h.col.Address)
+	ownerURL := GetImmutascanUserURL(asset.GetUser())
 
 	return &discordgo.InteractionResponseData{
-		Content: content,
+		Content: title,
 		Embeds: []*discordgo.MessageEmbed{
-			{Image: &discordgo.MessageEmbedImage{URL: *asset.ImageUrl.Get()}},
+			{
+				Image: &discordgo.MessageEmbedImage{URL: *asset.ImageUrl.Get()},
+				Fields: []*discordgo.MessageEmbedField{
+					{Name: "Status", Value: asset.Status},
+					{Name: "Owner", Value: ownerURL},
+					{Name: "Token ID", Value: tokenID},
+					{Name: "Collection", Value: collectionURL},
+				},
+				URL:       url,
+				Timestamp: asset.GetCreatedAt(),
+			},
 		},
 	}
 }

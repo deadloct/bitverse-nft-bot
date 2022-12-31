@@ -15,8 +15,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const MaxRecords = 20
-
 type OrdersHandler struct {
 	cm       *api.ClientsManager
 	coinbase *lib.CoinbaseClient
@@ -40,24 +38,48 @@ func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig) *discordgo.I
 		return &discordgo.InteractionResponseData{Content: "No results found"}
 	}
 
-	var output []string
+	var embeds []*discordgo.MessageEmbed
 	for _, order := range result {
-		output = append(output, h.getOutputForOrder(order))
+		embeds = append(embeds, h.getEmbedForOrder(order))
 	}
 
-	return &discordgo.InteractionResponseData{Content: strings.Join(output, "\n")}
+	return &discordgo.InteractionResponseData{
+		Content: fmt.Sprintf("%v Results", len(result)),
+		Embeds:  embeds,
+	}
 }
 
-func (h *OrdersHandler) getOutputForOrder(order imxapi.Order) string {
-	url := strings.Join([]string{lib.ImmutascanURL, "order", fmt.Sprint(order.OrderId)}, "/")
+func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageEmbed {
+	data := order.Sell.GetData()
+	tokenID := data.GetTokenId()
+	collection := data.GetTokenAddress()
+	name := order.Sell.Data.Properties.GetName()
+	if name == "" {
+		name = "Item " + tokenID
+	}
+	url := GetImmutascanAssetURL(collection, tokenID)
+	orderID := order.OrderId
+	orderUrl := strings.Join([]string{lib.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
+
 	ethPrice := h.getPrice(order)
 	fiatPrice := ethPrice * h.coinbase.LastSpotPrice
-	return fmt.Sprintf(`Order:
-- Status: %s
-- Price With Fees: %f ETH / %.2f USD
-- User: %s
-- Date: %s
-- Order Details: <%s>`, order.Status, ethPrice, fiatPrice, order.User, order.GetUpdatedTimestamp(), url)
+	priceStr := fmt.Sprintf("%f ETH / %.2f USD", ethPrice, fiatPrice)
+
+	imageURL := data.Properties.GetImageUrl()
+	title := fmt.Sprintf("%s (%s)", name, priceStr)
+
+	return &discordgo.MessageEmbed{
+		Title: title,
+		URL:   url,
+		Fields: []*discordgo.MessageEmbedField{
+			{Name: "Stats", Value: order.Status},
+			{Name: "Listing", Value: url},
+			{Name: "Owner", Value: GetImmutascanUserURL(order.User)},
+			{Name: "Order URL", Value: orderUrl},
+		},
+		Timestamp: order.GetUpdatedTimestamp(),
+		Image:     &discordgo.MessageEmbedImage{URL: imageURL},
+	}
 }
 
 func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
