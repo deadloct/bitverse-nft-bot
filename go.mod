@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/bwmarrin/discordgo v0.26.1
-	github.com/deadloct/immutablex-cli v0.0.0-20221231051303-6b701af29fd0
+	github.com/deadloct/immutablex-go-lib v0.0.0-20230101020234-44b9907e4a6f
 	github.com/immutable/imx-core-sdk-golang v0.2.2
 	github.com/sirupsen/logrus v1.9.0
 )

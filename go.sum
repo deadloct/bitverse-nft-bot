@@ -10,8 +10,8 @@ github.com/cpuguy83/go-md2man/v2 v2.0.2 h1:p1EgwI/C7NhT0JmVkwCD2ZBK8j4aeHQX2pMHH
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/deadloct/immutablex-cli v0.0.0-20221231051303-6b701af29fd0 h1:MwltFelMwvtiq66on3Vno/V04S5tG8NL6CpCsCuHVLg=
-github.com/deadloct/immutablex-cli v0.0.0-20221231051303-6b701af29fd0/go.mod h1:dvW2/wOxp3+BnYgDFYOP282//ix44582wYAW4cttq6I=
+github.com/deadloct/immutablex-go-lib v0.0.0-20230101020234-44b9907e4a6f h1:xd3NRFqgBqLx4/eVvM9O7xUnoRro03rizbeMSvbZbnQ=
+github.com/deadloct/immutablex-go-lib v0.0.0-20230101020234-44b9907e4a6f/go.mod h1:Be4SXkzBhXVfraJFrVgEAzo/zmpMMS74PCGD60Ka/XY=
 github.com/deckarep/golang-set v1.8.0 h1:sk9/l/KqpunDwP7pSjUg0keiOOLEnOBHzykLrsPppp4=
 github.com/deckarep/golang-set v1.8.0/go.mod h1:5nI87KwE7wgsBU1F4GKAw2Qod7p5kyS383rP6+o6qqo=
 github.com/decred/dcrd/crypto/blake256 v1.0.0 h1:/8DMNYp9SGi5f0w7uCm6d6M4OU2rGFK09Y2A4Xv7EE0=

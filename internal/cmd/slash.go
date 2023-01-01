@@ -8,7 +8,7 @@ import (
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
 	"github.com/deadloct/bitverse-nft-bot/internal/data"
 	"github.com/deadloct/bitverse-nft-bot/internal/handlers"
-	"github.com/deadloct/immutablex-cli/lib/orders"
+	"github.com/deadloct/immutablex-go-lib/orders"
 	log "github.com/sirupsen/logrus"
 )
 

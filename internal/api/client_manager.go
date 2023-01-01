@@ -1,9 +1,9 @@
 package api
 
 import (
-	"github.com/deadloct/immutablex-cli/lib/assets"
-	"github.com/deadloct/immutablex-cli/lib/collections"
-	"github.com/deadloct/immutablex-cli/lib/orders"
+	"github.com/deadloct/immutablex-go-lib/assets"
+	"github.com/deadloct/immutablex-go-lib/collections"
+	"github.com/deadloct/immutablex-go-lib/orders"
 )
 
 type ClientsManager struct {

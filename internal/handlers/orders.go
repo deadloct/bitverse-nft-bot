@@ -9,21 +9,22 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
-	"github.com/deadloct/immutablex-cli/lib"
-	"github.com/deadloct/immutablex-cli/lib/orders"
+	"github.com/deadloct/immutablex-go-lib/coinbase"
+	"github.com/deadloct/immutablex-go-lib/orders"
+	"github.com/deadloct/immutablex-go-lib/utils"
 	imxapi "github.com/immutable/imx-core-sdk-golang/imx/api"
 	log "github.com/sirupsen/logrus"
 )
 
 type OrdersHandler struct {
 	cm       *api.ClientsManager
-	coinbase *lib.CoinbaseClient
+	coinbase *coinbase.CoinbaseClient
 }
 
 func NewOrdersHandler(cm *api.ClientsManager) *OrdersHandler {
 	return &OrdersHandler{
 		cm:       cm,
-		coinbase: lib.GetCoinbaseClientInstance(),
+		coinbase: coinbase.GetCoinbaseClientInstance(),
 	}
 }
 
@@ -59,7 +60,7 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageE
 	}
 	url := GetImmutascanAssetURL(collection, tokenID)
 	orderID := order.OrderId
-	orderUrl := strings.Join([]string{lib.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
+	orderUrl := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
 
 	ethPrice := h.getPrice(order)
 	fiatPrice := ethPrice * h.coinbase.LastSpotPrice
