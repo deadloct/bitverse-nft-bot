@@ -58,9 +58,9 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageE
 	if name == "" {
 		name = "Item " + tokenID
 	}
-	url := GetImmutascanAssetURL(collection, tokenID)
+	urls := GetOrderURLs(collection, tokenID)
 	orderID := order.OrderId
-	orderUrl := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
+	orderURL := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
 
 	ethPrice := h.getPrice(order)
 	fiatPrice := ethPrice * h.coinbase.LastSpotPrice
@@ -71,12 +71,15 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageE
 
 	return &discordgo.MessageEmbed{
 		Title: title,
-		URL:   url,
+		URL:   urls.Immutascan,
 		Fields: []*discordgo.MessageEmbedField{
 			{Name: "Stats", Value: order.Status},
-			{Name: "Listing", Value: url},
 			{Name: "Owner", Value: GetImmutascanUserURL(order.User)},
-			{Name: "Order URL", Value: orderUrl},
+			{Name: "Immutable Market Listing", Value: urls.ImmutableMarket},
+			{Name: "Immutascan Listing", Value: urls.Immutascan},
+			{Name: "Gamestop Listing", Value: urls.Gamestop},
+			{Name: "Rarible Listing", Value: urls.Rarible},
+			{Name: "Record of Listing", Value: orderURL},
 		},
 		Timestamp: order.GetUpdatedTimestamp(),
 		Image:     &discordgo.MessageEmbedImage{URL: imageURL},
