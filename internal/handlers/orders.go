@@ -63,7 +63,7 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageE
 	orderURL := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
 
 	ethPrice := h.getPrice(order)
-	fiatPrice := ethPrice * h.coinbase.LastSpotPrice
+	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice()
 	priceStr := fmt.Sprintf("%f ETH / %.2f USD", ethPrice, fiatPrice)
 
 	imageURL := data.Properties.GetImageUrl()

@@ -24,4 +24,3 @@ docker_push: docker_build
 
 k8s_deploy:
 	kubectl apply -f k8s
-
