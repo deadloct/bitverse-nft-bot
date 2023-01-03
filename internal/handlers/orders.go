@@ -16,6 +16,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const MaxContentLength = 1900
+
 type OrdersHandler struct {
 	cm       *api.ClientsManager
 	coinbase *coinbase.CoinbaseClient
@@ -28,7 +30,7 @@ func NewOrdersHandler(cm *api.ClientsManager) *OrdersHandler {
 	}
 }
 
-func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig) *discordgo.InteractionResponseData {
+func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig, format string) *discordgo.InteractionResponseData {
 	result, err := h.cm.OrdersClient.ListOrders(context.Background(), cfg)
 	if err != nil {
 		log.Error(err)
@@ -39,15 +41,60 @@ func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig) *discordgo.I
 		return &discordgo.InteractionResponseData{Content: "No results found"}
 	}
 
-	var embeds []*discordgo.MessageEmbed
-	for _, order := range result {
-		embeds = append(embeds, h.getEmbedForOrder(order))
+	switch format {
+	case "summary":
+		var summaries []string
+		for _, order := range result {
+			summaries = append(summaries, h.getSummaryForOrder(order))
+		}
+
+		first := fmt.Sprintf("%v results:", len(result))
+		summaries = append([]string{first}, summaries...)
+
+		var content string
+		for i, summary := range summaries {
+			if len(summary)+len(content) > MaxContentLength {
+				content += "\n... (Max Discord length reached)"
+				break
+			}
+
+			if i == 0 {
+				content += summary
+			} else {
+				content += "\n" + summary
+			}
+		}
+
+		return &discordgo.InteractionResponseData{Content: content}
+
+	default:
+		var embeds []*discordgo.MessageEmbed
+		for _, order := range result {
+			embeds = append(embeds, h.getEmbedForOrder(order))
+		}
+
+		return &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("%v Results", len(result)),
+			Embeds:  embeds,
+		}
+	}
+}
+
+func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order) string {
+	data := order.Sell.GetData()
+	tokenID := data.GetTokenId()
+	collection := data.GetTokenAddress()
+	name := order.Sell.Data.Properties.GetName()
+	if name == "" {
+		name = "Item " + tokenID
 	}
 
-	return &discordgo.InteractionResponseData{
-		Content: fmt.Sprintf("%v Results", len(result)),
-		Embeds:  embeds,
-	}
+	urls := GetOrderURLs(collection, tokenID)
+	ethPrice := h.getPrice(order)
+	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice()
+	priceStr := fmt.Sprintf("%f ETH / %.2f USD", ethPrice, fiatPrice)
+
+	return fmt.Sprintf("• __%s__: <%s> (%s)", name, urls.Immutascan, priceStr)
 }
 
 func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageEmbed {

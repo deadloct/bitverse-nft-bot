@@ -176,7 +176,7 @@ func (s *SlashCommands) setupCommands() {
 					Type: discordgo.ApplicationCommandOptionInteger,
 					Name: "count",
 					Description: fmt.Sprintf(
-						"Return this many records (Default %v, Max: %v)",
+						"Return this many records (Default %v, Max: %v with detailed formatting)",
 						DefaultOrderCount,
 						MaxOrderCount,
 					),
@@ -187,6 +187,16 @@ func (s *SlashCommands) setupCommands() {
 					Name:        "token-id",
 					Description: "The token ID of the listing",
 					Required:    false,
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "output-format",
+					Description: "Choose the output format (Default: Summary)",
+					Required:    false,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{Name: "Detailed", Value: "detailed"},
+						{Name: "Summary", Value: "summary"},
+					},
 				},
 			},
 		},
@@ -204,6 +214,11 @@ func (s *SlashCommands) setupCommands() {
 
 func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.InteractionCreate) {
 	var response *discordgo.InteractionResponseData
+
+	sess.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{Content: "Loading results..."},
+	})
 
 	options := i.ApplicationCommandData().Options
 
@@ -226,6 +241,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 			Direction:        "asc",
 		}
 
+		format := "summary"
 		metadata := make(map[string][]string)
 		for _, option := range options {
 			switch option.Name {
@@ -237,12 +253,6 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 
 			case "count":
 				pageSize := int(option.IntValue())
-				if pageSize > MaxOrderCount {
-					pageSize = MaxOrderCount
-				} else if pageSize < 1 {
-					pageSize = 1
-				}
-
 				cfg.PageSize = pageSize
 
 			case "order-by":
@@ -275,9 +285,18 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 			case "user":
 				cfg.User = option.StringValue()
 
+			case "output-format":
+				format = option.StringValue()
+
 			default:
 				continue
 			}
+		}
+
+		if cfg.PageSize > MaxOrderCount && format != "summary" {
+			cfg.PageSize = MaxOrderCount
+		} else if cfg.PageSize < 1 {
+			cfg.PageSize = 1
 		}
 
 		if len(metadata) > 0 {
@@ -290,7 +309,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		}
 
 		log.Debugf("Get orders for cfg %#v", cfg)
-		response = s.ordersHandler.HandleCommand(cfg)
+		response = s.ordersHandler.HandleCommand(cfg, format)
 
 	default:
 		response = &discordgo.InteractionResponseData{
@@ -298,8 +317,11 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		}
 	}
 
-	sess.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: response,
+	_, err := sess.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{
+		Content: &response.Content,
+		Embeds:  &response.Embeds,
 	})
+	if err != nil {
+		log.Error(err)
+	}
 }
