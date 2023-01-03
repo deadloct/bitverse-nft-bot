@@ -1,7 +1,7 @@
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
-  name: bitverse-nft-bot-deployment
+  name: bitverse-nft-bots-statefulset
   labels:
     app: bitverse-nft-bot
 spec:
