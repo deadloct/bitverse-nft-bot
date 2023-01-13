@@ -8,6 +8,7 @@ import (
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
 	"github.com/deadloct/bitverse-nft-bot/internal/data"
 	"github.com/deadloct/bitverse-nft-bot/internal/handlers"
+	"github.com/deadloct/immutablex-go-lib/coinbase"
 	"github.com/deadloct/immutablex-go-lib/orders"
 	log "github.com/sirupsen/logrus"
 )
@@ -198,6 +199,17 @@ func (s *SlashCommands) setupCommands() {
 						{Name: "Summary", Value: "summary"},
 					},
 				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        "currency",
+					Description: "Currency for ETH conversion (Default: USD)",
+					Required:    false,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{Name: "USD", Value: coinbase.CurrencyUSD},
+						{Name: "EUR", Value: coinbase.CurrencyEUR},
+						{Name: "GBP", Value: coinbase.CurrencyGBP},
+					},
+				},
 			},
 		},
 	}
@@ -242,6 +254,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		}
 
 		format := "summary"
+		currency := coinbase.CurrencyUSD
 		metadata := make(map[string][]string)
 		for _, option := range options {
 			switch option.Name {
@@ -288,6 +301,9 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 			case "output-format":
 				format = option.StringValue()
 
+			case "currency":
+				currency = coinbase.Currency(option.StringValue())
+
 			default:
 				continue
 			}
@@ -309,7 +325,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		}
 
 		log.Debugf("Get orders for cfg %#v", cfg)
-		response = s.ordersHandler.HandleCommand(cfg, format)
+		response = s.ordersHandler.HandleCommand(cfg, format, currency)
 
 	default:
 		response = &discordgo.InteractionResponseData{

@@ -30,7 +30,12 @@ func NewOrdersHandler(cm *api.ClientsManager) *OrdersHandler {
 	}
 }
 
-func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig, format string) *discordgo.InteractionResponseData {
+func (h *OrdersHandler) HandleCommand(
+	cfg *orders.ListOrdersConfig,
+	format string,
+	currency coinbase.Currency,
+) *discordgo.InteractionResponseData {
+
 	result, err := h.cm.OrdersClient.ListOrders(context.Background(), cfg)
 	if err != nil {
 		log.Error(err)
@@ -45,7 +50,7 @@ func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig, format strin
 	case "summary":
 		var summaries []string
 		for _, order := range result {
-			summaries = append(summaries, h.getSummaryForOrder(order))
+			summaries = append(summaries, h.getSummaryForOrder(order, currency))
 		}
 
 		first := fmt.Sprintf("%v results:", len(result))
@@ -70,7 +75,7 @@ func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig, format strin
 	default:
 		var embeds []*discordgo.MessageEmbed
 		for _, order := range result {
-			embeds = append(embeds, h.getEmbedForOrder(order))
+			embeds = append(embeds, h.getEmbedForOrder(order, currency))
 		}
 
 		return &discordgo.InteractionResponseData{
@@ -80,7 +85,7 @@ func (h *OrdersHandler) HandleCommand(cfg *orders.ListOrdersConfig, format strin
 	}
 }
 
-func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order) string {
+func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase.Currency) string {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
 	collection := data.GetTokenAddress()
@@ -91,13 +96,13 @@ func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order) string {
 
 	urls := GetOrderURLs(collection, tokenID)
 	ethPrice := h.getPrice(order)
-	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice()
-	priceStr := fmt.Sprintf("%f ETH / %.2f USD", ethPrice, fiatPrice)
+	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
+	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.formatPrice(fiatPrice, currency))
 
 	return fmt.Sprintf("• __%s__: <%s> (%s)", name, urls.Immutascan, priceStr)
 }
 
-func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageEmbed {
+func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.Currency) *discordgo.MessageEmbed {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
 	collection := data.GetTokenAddress()
@@ -110,8 +115,8 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order) *discordgo.MessageE
 	orderURL := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
 
 	ethPrice := h.getPrice(order)
-	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice()
-	priceStr := fmt.Sprintf("%f ETH / %.2f USD", ethPrice, fiatPrice)
+	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
+	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.formatPrice(fiatPrice, currency))
 
 	imageURL := data.Properties.GetImageUrl()
 	title := fmt.Sprintf("%s (%s)", name, priceStr)
@@ -141,4 +146,19 @@ func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
 
 	decimals := int(*order.GetBuy().Data.Decimals)
 	return float64(amount) * math.Pow10(-1*decimals)
+}
+
+func (h *OrdersHandler) formatPrice(price float64, currency coinbase.Currency) string {
+	var symbol string
+
+	switch currency {
+	case coinbase.CurrencyEUR:
+		symbol = "€"
+	case coinbase.CurrencyGBP:
+		symbol = "£"
+	default:
+		symbol = "$"
+	}
+
+	return fmt.Sprintf("%s%0.2f", symbol, price)
 }
