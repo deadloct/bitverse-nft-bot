@@ -3,6 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
@@ -104,6 +105,10 @@ func (s *SlashCommands) setupCommands() {
 					Required:    true,
 				},
 			},
+		},
+		{
+			Name:        "rates",
+			Description: "Shows the conversion rates of ETH to USD, EUR, and GBP",
 		},
 		{
 			Name:        "market",
@@ -236,15 +241,37 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 
 	v := i.ApplicationCommandData().Name
 	switch v {
+	case "rates":
+		log.Debug("Handling rates command")
+		client := coinbase.GetCoinbaseClientInstance()
+
+		currencies := []coinbase.Currency{
+			coinbase.CurrencyUSD, coinbase.CurrencyGBP, coinbase.CurrencyEUR,
+		}
+
+		currencyStrings := []string{"1 ETH"}
+		for _, curr := range currencies {
+			v := client.RetrieveSpotPrice(curr)
+			currencyStrings = append(currencyStrings, s.ordersHandler.FormatPrice(v, curr))
+		}
+
+		log.Debugf("%+v", currencyStrings)
+		response = &discordgo.InteractionResponseData{
+			Content: strings.Join(currencyStrings, "\n"),
+		}
+
 	case "hero":
+		log.Debug("Handling hero command")
 		id := options[0].IntValue()
 		response = s.heroesHandler.HandleCommand(fmt.Sprint(id))
 
 	case "portal":
+		log.Debug("Handling portal command")
 		id := options[0].IntValue()
 		response = s.portalsHandler.HandleCommand(fmt.Sprint(id))
 
 	case "market":
+		log.Debug("Handling market command")
 		cfg := &orders.ListOrdersConfig{
 			PageSize:         DefaultOrderCount,
 			SellTokenAddress: data.BitVerseCollections["hero"].Address,
@@ -268,6 +295,9 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 				pageSize := int(option.IntValue())
 				cfg.PageSize = pageSize
 
+			case "currenocoinbase.GetCoinbaseClientInstance()cy":
+				currency = coinbase.Currency(option.StringValue())
+
 			case "order-by":
 				cfg.OrderBy = option.StringValue()
 				if cfg.OrderBy == "" {
@@ -276,6 +306,9 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 
 			case "rarity":
 				metadata["Rarity"] = []string{option.StringValue()}
+
+			case "output-format":
+				format = option.StringValue()
 
 			case "sort-direction":
 				cfg.Direction = option.StringValue()
@@ -297,12 +330,6 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 
 			case "user":
 				cfg.User = option.StringValue()
-
-			case "output-format":
-				format = option.StringValue()
-
-			case "currency":
-				currency = coinbase.Currency(option.StringValue())
 
 			default:
 				continue

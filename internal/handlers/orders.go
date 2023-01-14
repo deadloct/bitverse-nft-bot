@@ -85,6 +85,21 @@ func (h *OrdersHandler) HandleCommand(
 	}
 }
 
+func (h *OrdersHandler) FormatPrice(price float64, currency coinbase.Currency) string {
+	var symbol string
+
+	switch currency {
+	case coinbase.CurrencyEUR:
+		symbol = "€"
+	case coinbase.CurrencyGBP:
+		symbol = "£"
+	default:
+		symbol = "$"
+	}
+
+	return fmt.Sprintf("%s%0.2f", symbol, price)
+}
+
 func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase.Currency) string {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
@@ -97,7 +112,7 @@ func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase
 	urls := GetOrderURLs(collection, tokenID)
 	ethPrice := h.getPrice(order)
 	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
-	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.formatPrice(fiatPrice, currency))
+	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.FormatPrice(fiatPrice, currency))
 
 	return fmt.Sprintf("• __%s__: <%s> (%s)", name, urls.Immutascan, priceStr)
 }
@@ -116,7 +131,7 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.C
 
 	ethPrice := h.getPrice(order)
 	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
-	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.formatPrice(fiatPrice, currency))
+	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.FormatPrice(fiatPrice, currency))
 
 	imageURL := data.Properties.GetImageUrl()
 	title := fmt.Sprintf("%s (%s)", name, priceStr)
@@ -146,19 +161,4 @@ func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
 
 	decimals := int(*order.GetBuy().Data.Decimals)
 	return float64(amount) * math.Pow10(-1*decimals)
-}
-
-func (h *OrdersHandler) formatPrice(price float64, currency coinbase.Currency) string {
-	var symbol string
-
-	switch currency {
-	case coinbase.CurrencyEUR:
-		symbol = "€"
-	case coinbase.CurrencyGBP:
-		symbol = "£"
-	default:
-		symbol = "$"
-	}
-
-	return fmt.Sprintf("%s%0.2f", symbol, price)
 }
