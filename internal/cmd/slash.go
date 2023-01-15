@@ -20,13 +20,12 @@ const (
 )
 
 type SlashCommands struct {
-	clientsManager     *api.ClientsManager
-	heroesHandler      *handlers.AssetMessageHandler
-	ordersHandler      *handlers.OrdersHandler
-	portalsHandler     *handlers.AssetMessageHandler
-	registeredCommands []*discordgo.ApplicationCommand
-	session            *discordgo.Session
-	started            bool
+	clientsManager *api.ClientsManager
+	heroesHandler  *handlers.AssetMessageHandler
+	ordersHandler  *handlers.OrdersHandler
+	portalsHandler *handlers.AssetMessageHandler
+	session        *discordgo.Session
+	started        bool
 }
 
 func NewSlashCommands(session *discordgo.Session) *SlashCommands {
@@ -69,14 +68,7 @@ func (s *SlashCommands) Stop() {
 		return
 	}
 
-	// Remove commands
-	for _, v := range s.registeredCommands {
-		err := s.session.ApplicationCommandDelete(s.session.State.User.ID, "", v.ID)
-		if err != nil {
-			log.Errorf("Cannot delete '%v' command: %v", v.Name, err)
-		}
-	}
-
+	s.cleanupCommands()
 	s.clientsManager.Stop()
 }
 
@@ -219,9 +211,20 @@ func (s *SlashCommands) setupCommands() {
 		},
 	}
 
-	s.registeredCommands = make([]*discordgo.ApplicationCommand, len(commands))
+	// Add new commands
+	log.Debug("registering slash commands")
+	for _, v := range commands {
+		if _, err := s.session.ApplicationCommandCreate(s.session.State.User.ID, "", v); err != nil {
+			log.Panicf("cannot create command %v: %v", v.Name, err)
+		}
 
-	// Remove old commands since Discord doesn't do that automatically for some reason.
+		log.Debug("created command %v", v.Name)
+	}
+
+	log.Debug("finished registering slash commands")
+}
+
+func (s *SlashCommands) cleanupCommands() {
 	existingCommands, err := s.session.ApplicationCommands(s.session.State.User.ID, "")
 	if err != nil {
 		log.Errorf("could not retrieve commands to do a pre-startup cleanup")
@@ -236,20 +239,8 @@ func (s *SlashCommands) setupCommands() {
 			log.Debugf("removed command %v", v.Name)
 		}
 	}
-	log.Debug("finished old command cleanup")
 
-	// Add new commands
-	log.Debug("registering slash commands")
-	for i, v := range commands {
-		cmd, err := s.session.ApplicationCommandCreate(s.session.State.User.ID, "", v)
-		if err != nil {
-			log.Panicf("cannot create command %v: %v", v.Name, err)
-		} else {
-			log.Debug("created command %v", v.Name)
-		}
-		s.registeredCommands[i] = cmd
-	}
-	log.Debug("finished registering slash commands")
+	log.Debug("finished old command cleanup")
 }
 
 func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.InteractionCreate) {
