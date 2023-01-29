@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: bitverse-nft-bot 
-        image: registry.digitalocean.com/deadloct/bitverse-nft-bot:latest
+        image: deadloct/bitverse-nft-bot:latest
         env:
         - name: BITVERSE_NFT_BOT_AUTH_TOKEN
           valueFrom:

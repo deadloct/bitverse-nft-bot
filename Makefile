@@ -2,8 +2,6 @@ ifneq ("$(wildcard .env)", "")
 	include .env
 endif
 
-IMAGE_URL=registry.digitalocean.com/deadloct/bitverse-nft-bot
-
 build:
 	go build
 
