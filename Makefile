@@ -15,7 +15,7 @@ run: build
 	$(LOCAL_PATH)
 
 ssh_build: clean
-	GOOS=linux GOARCH=arm GOARM=5 go build -o $(LOCAL_PATH)/$(NAME)
+	GOOS=linux GOARCH=arm64 GOARM=5 go build -o $(LOCAL_PATH)/$(NAME)
 
 ssh_deploy: ssh_build
 	rsync -avz $(LOCAL_PATH)/ $(SSH_HOST):$(SSH_DIR)

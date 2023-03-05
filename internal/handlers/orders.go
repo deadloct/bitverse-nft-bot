@@ -97,6 +97,8 @@ func (h *OrdersHandler) FormatPrice(price float64, currency coinbase.Currency) s
 		symbol = "$"
 	}
 
+	log.Debugf("asked to format price %0.2f in currency %v", price, currency)
+
 	return fmt.Sprintf("%s%0.2f", symbol, price)
 }
 
@@ -154,8 +156,10 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.C
 }
 
 func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
+	log.Debugf("price of order with fees: %v", order.GetBuy().Data.QuantityWithFees)
 	amount, err := strconv.Atoi(order.GetBuy().Data.QuantityWithFees)
 	if err != nil {
+		log.Errorf("error converting price to integer, using 0 price: %v", err)
 		return 0
 	}
 
