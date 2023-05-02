@@ -44,17 +44,26 @@ func (h *AssetMessageHandler) HandleCommand(tokenID string) *discordgo.Interacti
 	collectionURL := GetImmutascanUserURL(h.col.Address)
 	ownerURL := GetImmutascanUserURL(asset.GetUser())
 
+	fields := []*discordgo.MessageEmbedField{
+		{Name: "Status", Value: asset.Status},
+		{Name: "Owner", Value: ownerURL},
+		{Name: "Token ID", Value: tokenID},
+		{Name: "Collection", Value: collectionURL},
+	}
+
+	for k, v := range asset.GetMetadata() {
+		fields = append(fields, &discordgo.MessageEmbedField{
+			Name:  k,
+			Value: fmt.Sprintf("%v", v),
+		})
+	}
+
 	return &discordgo.InteractionResponseData{
 		Content: title,
 		Embeds: []*discordgo.MessageEmbed{
 			{
-				Image: &discordgo.MessageEmbedImage{URL: *asset.ImageUrl.Get()},
-				Fields: []*discordgo.MessageEmbedField{
-					{Name: "Status", Value: asset.Status},
-					{Name: "Owner", Value: ownerURL},
-					{Name: "Token ID", Value: tokenID},
-					{Name: "Collection", Value: collectionURL},
-				},
+				Image:     &discordgo.MessageEmbedImage{URL: *asset.ImageUrl.Get()},
+				Fields:    fields,
 				URL:       url,
 				Timestamp: asset.GetCreatedAt(),
 			},

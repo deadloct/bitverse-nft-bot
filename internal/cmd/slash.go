@@ -17,6 +17,23 @@ import (
 const (
 	MaxOrderCount     = 5
 	DefaultOrderCount = 3
+
+	CMDHero                = "hero"
+	CMDHeroID              = "id"
+	CMDPortal              = "portal"
+	CMDPortalID            = "id"
+	CMDRates               = "rates"
+	CMDMarket              = "market"
+	CMDMarketCollection    = "collection"
+	CMDMarketStatus        = "status"
+	CMDMarketRarity        = "rarity"
+	CMDMarketOrderBy       = "order-by"
+	CMDMarketSortDirection = "sort-direction"
+	CMDMarketUser          = "user"
+	CMDMarketCount         = "count"
+	CMDMarketTokenID       = "token-id"
+	CMDMarketOutputFormat  = "output-format"
+	CMDMarketCurrency      = "currency"
 )
 
 type SlashCommands struct {
@@ -75,40 +92,40 @@ func (s *SlashCommands) Stop() {
 func (s *SlashCommands) setupCommands() {
 	commands := []*discordgo.ApplicationCommand{
 		{
-			Name:        "hero",
+			Name:        CMDHero,
 			Description: "Fetches the hero NFT with the provided ID",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "id",
+					Name:        CMDHeroID,
 					Description: "The hero ID to retrieve",
 					Required:    true,
 				},
 			},
 		},
 		{
-			Name:        "portal",
+			Name:        CMDPortal,
 			Description: "Fetches the portal NFT with the provided ID",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "id",
+					Name:        CMDPortalID,
 					Description: "The portal ID to retrieve",
 					Required:    true,
 				},
 			},
 		},
 		{
-			Name:        "rates",
+			Name:        CMDRates,
 			Description: "Shows the conversion rates of ETH to USD, EUR, and GBP",
 		},
 		{
-			Name:        "market",
+			Name:        CMDMarket,
 			Description: "Query market listings",
 			Options: []*discordgo.ApplicationCommandOption{
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "collection",
+					Name:        CMDMarketCollection,
 					Description: "The collection of returned listings (default: Heroes)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -118,7 +135,7 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "status",
+					Name:        CMDMarketStatus,
 					Description: "Status of the order (Default: Active)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -131,7 +148,7 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "rarity",
+					Name:        CMDMarketRarity,
 					Description: "Filter by NFT rarity (Default: All)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -144,7 +161,7 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "order-by",
+					Name:        CMDMarketOrderBy,
 					Description: "Choose the field to sort the results by (Default: Price)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -156,7 +173,7 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "sort-direction",
+					Name:        CMDMarketSortDirection,
 					Description: "Sort direction (Default: Ascending)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -166,13 +183,13 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "user",
+					Name:        CMDMarketUser,
 					Description: "User address that created the order",
 					Required:    false,
 				},
 				{
 					Type: discordgo.ApplicationCommandOptionInteger,
-					Name: "count",
+					Name: CMDMarketCount,
 					Description: fmt.Sprintf(
 						"Return this many records (Default %v, Max: %v with detailed formatting)",
 						DefaultOrderCount,
@@ -182,13 +199,13 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionInteger,
-					Name:        "token-id",
+					Name:        CMDMarketTokenID,
 					Description: "The token ID of the listing",
 					Required:    false,
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "output-format",
+					Name:        CMDMarketOutputFormat,
 					Description: "Choose the output format (Default: Summary)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -198,7 +215,7 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        "currency",
+					Name:        CMDMarketCurrency,
 					Description: "Currency for ETH conversion (Default: USD)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
@@ -255,7 +272,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 
 	v := i.ApplicationCommandData().Name
 	switch v {
-	case "rates":
+	case CMDRates:
 		log.Debug("Handling rates command")
 		client := coinbase.GetCoinbaseClientInstance()
 
@@ -274,17 +291,17 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 			Content: strings.Join(currencyStrings, "\n"),
 		}
 
-	case "hero":
+	case CMDHero:
 		log.Debug("Handling hero command")
 		id := options[0].IntValue()
 		response = s.heroesHandler.HandleCommand(fmt.Sprint(id))
 
-	case "portal":
+	case CMDPortal:
 		log.Debug("Handling portal command")
 		id := options[0].IntValue()
 		response = s.portalsHandler.HandleCommand(fmt.Sprint(id))
 
-	case "market":
+	case CMDMarket:
 		log.Debug("Handling market command")
 		cfg := &orders.ListOrdersConfig{
 			PageSize:         DefaultOrderCount,
@@ -299,50 +316,50 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		metadata := make(map[string][]string)
 		for _, option := range options {
 			switch option.Name {
-			case "collection":
+			case CMDMarketCollection:
 				cfg.SellTokenAddress = option.StringValue()
 				if cfg.SellTokenAddress == "" {
 					cfg.SellTokenAddress = data.BitVerseCollections["hero"].Address
 				}
 
-			case "count":
+			case CMDMarketCount:
 				pageSize := int(option.IntValue())
 				cfg.PageSize = pageSize
 
-			case "currenocoinbase.GetCoinbaseClientInstance()cy":
+			case CMDMarketCurrency:
 				currency = coinbase.Currency(option.StringValue())
 
-			case "order-by":
+			case CMDMarketOrderBy:
 				cfg.OrderBy = option.StringValue()
 				if cfg.OrderBy == "" {
 					cfg.OrderBy = "buy_quantity_with_fees"
 				}
 
-			case "rarity":
+			case CMDMarketRarity:
 				metadata["Rarity"] = []string{option.StringValue()}
 
-			case "output-format":
+			case CMDMarketOutputFormat:
 				format = option.StringValue()
 
-			case "sort-direction":
+			case CMDMarketSortDirection:
 				cfg.Direction = option.StringValue()
 				if cfg.Direction == "" {
 					cfg.Direction = "asc"
 				}
 
-			case "status":
+			case CMDMarketStatus:
 				cfg.Status = option.StringValue()
 				if cfg.Status == "" {
 					cfg.Status = "active"
 				}
 
-			case "token-id":
+			case CMDMarketTokenID:
 				tokenID := option.IntValue()
 				if tokenID > 0 {
 					cfg.SellTokenID = fmt.Sprint(tokenID)
 				}
 
-			case "user":
+			case CMDMarketUser:
 				cfg.User = option.StringValue()
 
 			default:
