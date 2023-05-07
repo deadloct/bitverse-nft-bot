@@ -231,11 +231,12 @@ func (s *SlashCommands) setupCommands() {
 	// Add new commands
 	log.Debug("registering slash commands")
 	for _, v := range commands {
+		log.Debugf("registering command %v", v.Name)
 		if _, err := s.session.ApplicationCommandCreate(s.session.State.User.ID, "", v); err != nil {
 			log.Panicf("cannot create command %v: %v", v.Name, err)
 		}
 
-		log.Debug("created command %v", v.Name)
+		log.Debugf("created command %v", v.Name)
 	}
 
 	log.Debug("finished registering slash commands")

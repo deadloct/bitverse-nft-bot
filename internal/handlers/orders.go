@@ -6,6 +6,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
@@ -16,7 +17,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const MaxContentLength = 1900
+const (
+	MaxContentLength  = 1900
+	MetadataHeroName  = "BHQ - Hero Name"
+	MetadataHeroLevel = "BHQ - Level"
+)
+
+type Metadata map[string]interface{}
 
 type OrdersHandler struct {
 	cm       *api.ClientsManager
@@ -36,7 +43,10 @@ func (h *OrdersHandler) HandleCommand(
 	currency coinbase.Currency,
 ) *discordgo.InteractionResponseData {
 
-	result, err := h.cm.OrdersClient.ListOrders(context.Background(), cfg)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+
+	result, err := h.cm.OrdersClient.ListOrders(ctx, cfg)
 	if err != nil {
 		log.Error(err)
 		return &discordgo.InteractionResponseData{Content: "Unable to fetch orders for the provided query"}
@@ -46,11 +56,23 @@ func (h *OrdersHandler) HandleCommand(
 		return &discordgo.InteractionResponseData{Content: "No results found"}
 	}
 
+	metadata := make(map[string]Metadata, len(result))
+	for _, r := range result {
+		data := r.Sell.GetData()
+		asset, err := h.cm.AssetsClient.GetAsset(ctx, data.GetTokenAddress(), data.GetTokenId(), false)
+		if err != nil {
+			log.Errorf("unable to retrieve asset %v: %v", data.GetTokenId(), err)
+			continue
+		}
+
+		metadata[data.GetTokenId()] = asset.GetMetadata()
+	}
+
 	switch format {
 	case "summary":
 		var summaries []string
 		for _, order := range result {
-			summaries = append(summaries, h.getSummaryForOrder(order, currency))
+			summaries = append(summaries, h.getSummaryForOrder(order, currency, metadata))
 		}
 
 		first := fmt.Sprintf("%v results:", len(result))
@@ -66,7 +88,7 @@ func (h *OrdersHandler) HandleCommand(
 			if i == 0 {
 				content += summary
 			} else {
-				content += "\n" + summary
+				content += "\n\n" + summary
 			}
 		}
 
@@ -75,7 +97,7 @@ func (h *OrdersHandler) HandleCommand(
 	default:
 		var embeds []*discordgo.MessageEmbed
 		for _, order := range result {
-			embeds = append(embeds, h.getEmbedForOrder(order, currency))
+			embeds = append(embeds, h.getEmbedForOrder(order, currency, metadata))
 		}
 
 		return &discordgo.InteractionResponseData{
@@ -102,7 +124,7 @@ func (h *OrdersHandler) FormatPrice(price float64, currency coinbase.Currency) s
 	return fmt.Sprintf("%s%0.2f", symbol, price)
 }
 
-func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase.Currency) string {
+func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase.Currency, metadata map[string]Metadata) string {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
 	collection := data.GetTokenAddress()
@@ -116,13 +138,14 @@ func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase
 	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
 	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.FormatPrice(fiatPrice, currency))
 
-	return fmt.Sprintf("• __%s__: <%s> (%s)", name, urls.Immutascan, priceStr)
+	return fmt.Sprintf("• __%s__ (%s)\n  Hero Name: %s\n  Link: <%s>", name, priceStr, h.getHeroName(tokenID, metadata), urls.Immutascan)
 }
 
-func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.Currency) *discordgo.MessageEmbed {
+func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.Currency, metadata map[string]Metadata) *discordgo.MessageEmbed {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
 	collection := data.GetTokenAddress()
+	user := order.GetUser()
 	name := order.Sell.Data.Properties.GetName()
 	if name == "" {
 		name = "Item " + tokenID
@@ -138,18 +161,21 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.C
 	imageURL := data.Properties.GetImageUrl()
 	title := fmt.Sprintf("%s (%s)", name, priceStr)
 
+	fields := []*discordgo.MessageEmbedField{
+		{Name: "Hero Name", Value: h.getHeroName(tokenID, metadata)},
+		{Name: "Stats", Value: order.Status},
+		{Name: "Owner", Value: GetImmutascanUserURL(user) + "?tab=1&forSale=true"},
+		{Name: "Immutable Market Listing", Value: urls.ImmutableMarket},
+		{Name: "Immutascan Listing", Value: urls.Immutascan},
+		{Name: "Gamestop Listing", Value: urls.Gamestop},
+		{Name: "Rarible Listing", Value: urls.Rarible},
+		{Name: "Record of Listing", Value: orderURL},
+	}
+
 	return &discordgo.MessageEmbed{
-		Title: title,
-		URL:   urls.Immutascan,
-		Fields: []*discordgo.MessageEmbedField{
-			{Name: "Stats", Value: order.Status},
-			{Name: "Owner", Value: GetImmutascanUserURL(order.User)},
-			{Name: "Immutable Market Listing", Value: urls.ImmutableMarket},
-			{Name: "Immutascan Listing", Value: urls.Immutascan},
-			{Name: "Gamestop Listing", Value: urls.Gamestop},
-			{Name: "Rarible Listing", Value: urls.Rarible},
-			{Name: "Record of Listing", Value: orderURL},
-		},
+		Title:     title,
+		URL:       urls.Immutascan,
+		Fields:    fields,
 		Timestamp: order.GetUpdatedTimestamp(),
 		Image:     &discordgo.MessageEmbedImage{URL: imageURL},
 	}
@@ -165,4 +191,17 @@ func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
 
 	decimals := int(*order.GetBuy().Data.Decimals)
 	return float64(amount) * math.Pow10(-1*decimals)
+}
+
+func (h *OrdersHandler) getHeroName(tokenID string, metaMap map[string]Metadata) string {
+	heroName := "(Not Set)"
+	if m, ok := metaMap[tokenID]; ok {
+		if n, ok := m[MetadataHeroName]; ok {
+			if name, ok := n.(string); ok && name != "" {
+				heroName = name
+			}
+		}
+	}
+
+	return heroName
 }
