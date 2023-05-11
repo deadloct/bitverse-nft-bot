@@ -40,7 +40,7 @@ func NewOrdersHandler(cm *api.ClientsManager) *OrdersHandler {
 func (h *OrdersHandler) HandleCommand(
 	cfg *orders.ListOrdersConfig,
 	format string,
-	currency coinbase.Currency,
+	currency coinbase.FiatSymbol,
 ) *discordgo.InteractionResponseData {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
@@ -107,24 +107,24 @@ func (h *OrdersHandler) HandleCommand(
 	}
 }
 
-func (h *OrdersHandler) FormatPrice(price float64, currency coinbase.Currency) string {
+func (h *OrdersHandler) FormatPrice(price float64, fiat coinbase.FiatSymbol) string {
 	var symbol string
 
-	switch currency {
-	case coinbase.CurrencyEUR:
+	switch fiat {
+	case coinbase.FiatEUR:
 		symbol = "€"
-	case coinbase.CurrencyGBP:
+	case coinbase.FiatGBP:
 		symbol = "£"
 	default:
 		symbol = "$"
 	}
 
-	log.Debugf("asked to format price %0.2f in currency %v", price, currency)
+	log.Debugf("asked to format price %0.2f in currency %v", price, fiat)
 
 	return fmt.Sprintf("%s%0.2f", symbol, price)
 }
 
-func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase.Currency, metadata map[string]Metadata) string {
+func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, fiatType coinbase.FiatSymbol, metadata map[string]Metadata) string {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
 	collection := data.GetTokenAddress()
@@ -134,14 +134,15 @@ func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, currency coinbase
 	}
 
 	urls := GetOrderURLs(collection, tokenID)
-	ethPrice := h.getPrice(order)
-	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
-	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.FormatPrice(fiatPrice, currency))
+	cryptoPrice := h.getPrice(order)
+	cryptoSymbol := order.GetBuy().Type
+	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(coinbase.CryptoSymbol(cryptoSymbol), fiatType)
+	priceStr := fmt.Sprintf("%f %s / %s", cryptoPrice, cryptoSymbol, h.FormatPrice(fiatPrice, fiatType))
 
 	return fmt.Sprintf("• __%s__ (%s)\n  Hero Name: %s\n  Link: <%s>", name, priceStr, h.getHeroName(tokenID, metadata), urls.Immutascan)
 }
 
-func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.Currency, metadata map[string]Metadata) *discordgo.MessageEmbed {
+func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, fiatType coinbase.FiatSymbol, metadata map[string]Metadata) *discordgo.MessageEmbed {
 	data := order.Sell.GetData()
 	tokenID := data.GetTokenId()
 	collection := data.GetTokenAddress()
@@ -154,9 +155,10 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.C
 	orderID := order.OrderId
 	orderURL := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
 
-	ethPrice := h.getPrice(order)
-	fiatPrice := ethPrice * h.coinbase.RetrieveSpotPrice(currency)
-	priceStr := fmt.Sprintf("%f ETH / %s", ethPrice, h.FormatPrice(fiatPrice, currency))
+	cryptoPrice := h.getPrice(order)
+	cryptoSymbol := order.GetBuy().Type
+	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(coinbase.CryptoSymbol(cryptoSymbol), fiatType)
+	priceStr := fmt.Sprintf("%f %s / %s", cryptoPrice, cryptoSymbol, h.FormatPrice(fiatPrice, fiatType))
 
 	imageURL := data.Properties.GetImageUrl()
 	title := fmt.Sprintf("%s (%s)", name, priceStr)
@@ -182,8 +184,9 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, currency coinbase.C
 }
 
 func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
-	log.Debugf("price of order with fees: %v", order.GetBuy().Data.QuantityWithFees)
-	amount, err := strconv.Atoi(order.GetBuy().Data.QuantityWithFees)
+	price := order.GetBuy().Data.QuantityWithFees
+	log.Debugf("price of order with fees: %v", price)
+	amount, err := strconv.Atoi(price)
 	if err != nil {
 		log.Errorf("error converting price to integer, using 0 price: %v", err)
 		return 0
@@ -194,7 +197,7 @@ func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
 }
 
 func (h *OrdersHandler) getHeroName(tokenID string, metaMap map[string]Metadata) string {
-	heroName := "(Not Set)"
+	heroName := "(Unknown)"
 	if m, ok := metaMap[tokenID]; ok {
 		if n, ok := m[MetadataHeroName]; ok {
 			if name, ok := n.(string); ok && name != "" {

@@ -219,9 +219,9 @@ func (s *SlashCommands) setupCommands() {
 					Description: "Currency for ETH conversion (Default: USD)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
-						{Name: "USD", Value: coinbase.CurrencyUSD},
-						{Name: "EUR", Value: coinbase.CurrencyEUR},
-						{Name: "GBP", Value: coinbase.CurrencyGBP},
+						{Name: "USD", Value: coinbase.FiatUSD},
+						{Name: "EUR", Value: coinbase.FiatEUR},
+						{Name: "GBP", Value: coinbase.FiatGBP},
 					},
 				},
 			},
@@ -277,14 +277,22 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		log.Debug("Handling rates command")
 		client := coinbase.GetCoinbaseClientInstance()
 
-		currencies := []coinbase.Currency{
-			coinbase.CurrencyUSD, coinbase.CurrencyGBP, coinbase.CurrencyEUR,
+		cryptos := []coinbase.CryptoSymbol{
+			coinbase.CryptoETH, coinbase.CryptoIMX, coinbase.CryptoUSDC,
 		}
 
-		currencyStrings := []string{"1 ETH"}
-		for _, curr := range currencies {
-			v := client.RetrieveSpotPrice(curr)
-			currencyStrings = append(currencyStrings, s.ordersHandler.FormatPrice(v, curr))
+		fiats := []coinbase.FiatSymbol{
+			coinbase.FiatUSD, coinbase.FiatGBP, coinbase.FiatEUR,
+		}
+
+		var currencyStrings []string
+		for _, crypto := range cryptos {
+			str := fmt.Sprintf("1 %s", crypto)
+			for _, fiat := range fiats {
+				v := client.RetrieveSpotPrice(crypto, fiat)
+				str = fmt.Sprintf("%s ≈ %s", str, s.ordersHandler.FormatPrice(v, fiat))
+			}
+			currencyStrings = append(currencyStrings, str)
 		}
 
 		log.Debugf("%+v", currencyStrings)
@@ -313,7 +321,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		}
 
 		format := "summary"
-		currency := coinbase.CurrencyUSD
+		currency := coinbase.FiatUSD
 		metadata := make(map[string][]string)
 		for _, option := range options {
 			switch option.Name {
@@ -328,7 +336,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 				cfg.PageSize = pageSize
 
 			case CMDMarketCurrency:
-				currency = coinbase.Currency(option.StringValue())
+				currency = coinbase.FiatSymbol(option.StringValue())
 
 			case CMDMarketOrderBy:
 				cfg.OrderBy = option.StringValue()
