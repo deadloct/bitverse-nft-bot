@@ -18,9 +18,10 @@ import (
 )
 
 const (
-	MaxContentLength  = 1900
-	MetadataHeroName  = "BHQ - Hero Name"
-	MetadataHeroLevel = "BHQ - Level"
+	MaxContentLength    = 1900
+	MetadataHeroName    = "BHQ - Hero Name"
+	MetadataHeroLevel   = "BHQ - Level"
+	ImmutableUSDCSymbol = "ERC20"
 )
 
 type Metadata map[string]interface{}
@@ -135,8 +136,8 @@ func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, fiatType coinbase
 
 	urls := GetOrderURLs(collection, tokenID)
 	cryptoPrice := h.getPrice(order)
-	cryptoSymbol := order.GetBuy().Type
-	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(coinbase.CryptoSymbol(cryptoSymbol), fiatType)
+	cryptoSymbol := h.getCryptoSymbol(order.GetBuy().Type)
+	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(cryptoSymbol, fiatType)
 	priceStr := fmt.Sprintf("%f %s / %s", cryptoPrice, cryptoSymbol, h.FormatPrice(fiatPrice, fiatType))
 
 	return fmt.Sprintf("• __%s__ (%s)\n  Hero Name: %s\n  Link: <%s>", name, priceStr, h.getHeroName(tokenID, metadata), urls.Immutascan)
@@ -156,8 +157,8 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, fiatType coinbase.F
 	orderURL := strings.Join([]string{utils.ImmutascanURL, "order", fmt.Sprint(orderID)}, "/")
 
 	cryptoPrice := h.getPrice(order)
-	cryptoSymbol := order.GetBuy().Type
-	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(coinbase.CryptoSymbol(cryptoSymbol), fiatType)
+	cryptoSymbol := h.getCryptoSymbol(order.GetBuy().Type)
+	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(cryptoSymbol, fiatType)
 	priceStr := fmt.Sprintf("%f %s / %s", cryptoPrice, cryptoSymbol, h.FormatPrice(fiatPrice, fiatType))
 
 	imageURL := data.Properties.GetImageUrl()
@@ -207,4 +208,12 @@ func (h *OrdersHandler) getHeroName(tokenID string, metaMap map[string]Metadata)
 	}
 
 	return heroName
+}
+
+func (h *OrdersHandler) getCryptoSymbol(str string) coinbase.CryptoSymbol {
+	if str == ImmutableUSDCSymbol {
+		return coinbase.CryptoUSDC
+	}
+
+	return coinbase.CryptoSymbol(str)
 }
