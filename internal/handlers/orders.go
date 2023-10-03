@@ -140,7 +140,7 @@ func (h *OrdersHandler) getSummaryForOrder(order imxapi.Order, fiatType coinbase
 	fiatPrice := cryptoPrice * h.coinbase.RetrieveSpotPrice(cryptoSymbol, fiatType)
 	priceStr := fmt.Sprintf("%f %s / %s", cryptoPrice, cryptoSymbol, h.FormatPrice(fiatPrice, fiatType))
 
-	return fmt.Sprintf("• __%s__ (%s)\n  Hero Name: %s\n  Link: <%s>", name, priceStr, h.getHeroName(tokenID, metadata), urls.Immutascan)
+	return fmt.Sprintf("• __%s__ (%s -- Confirm Fees on Web)\n  Hero Name: %s\n  Link: <%s>", name, priceStr, h.getHeroName(tokenID, metadata), urls.Immutascan)
 }
 
 func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, fiatType coinbase.FiatSymbol, metadata map[string]Metadata) *discordgo.MessageEmbed {
@@ -162,7 +162,7 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, fiatType coinbase.F
 	priceStr := fmt.Sprintf("%f %s / %s", cryptoPrice, cryptoSymbol, h.FormatPrice(fiatPrice, fiatType))
 
 	imageURL := data.Properties.GetImageUrl()
-	title := fmt.Sprintf("%s (%s)", name, priceStr)
+	title := fmt.Sprintf("%s (%s -- Confirm Fees on Web)", name, priceStr)
 
 	fields := []*discordgo.MessageEmbedField{
 		{Name: "Hero Name", Value: h.getHeroName(tokenID, metadata)},
@@ -185,6 +185,7 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, fiatType coinbase.F
 }
 
 func (h *OrdersHandler) getPrice(order imxapi.Order) float64 {
+	// Deprecated field, but updates not yet available in imx's go lib.
 	price := order.GetBuy().Data.QuantityWithFees
 	log.Debugf("price of order with fees: %v", price)
 	amount, err := strconv.Atoi(price)

@@ -27,8 +27,8 @@ github.com/crate-crypto/go-kzg-4844 v0.3.0/go.mod h1:SBP7ikXEgDnUPONgm33HtuDZEDt
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/deadloct/immutablex-go-lib v0.0.0-20230919074828-8a186285f9fa h1:V5WLD1mng8U/ccjbuu5BMhJOrgMkEfUzZ8A9u3GoSgk=
-github.com/deadloct/immutablex-go-lib v0.0.0-20230919074828-8a186285f9fa/go.mod h1:385xOEJG6FkCyiNTzuwTVVDl0IOMl+DKtXU/zQxEAEg=
+github.com/deadloct/immutablex-go-lib v0.0.0-20231003200724-09d9df9002fd h1:i9meI3XSvy5ihLuLF6dXOCUGybmN7QOt2WnotB3qu7s=
+github.com/deadloct/immutablex-go-lib v0.0.0-20231003200724-09d9df9002fd/go.mod h1:385xOEJG6FkCyiNTzuwTVVDl0IOMl+DKtXU/zQxEAEg=
 github.com/deckarep/golang-set/v2 v2.3.1 h1:vjmkvJt/IV27WXPyYQpAh4bRyWJc5Y435D17XQ9QU5A=
 github.com/deckarep/golang-set/v2 v2.3.1/go.mod h1:VAky9rY/yGXJOLEDv3OMci+7wtDpOF4IN+y82NBOac4=
 github.com/decred/dcrd/crypto/blake256 v1.0.1 h1:7PltbUIQB7u/FfZ39+DGa/ShuMyJ5ilcvdfma9wOH6Y=
