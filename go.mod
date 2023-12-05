@@ -4,8 +4,8 @@ go 1.18
 
 require (
 	github.com/bwmarrin/discordgo v0.27.1
-	github.com/deadloct/immutablex-go-lib v0.0.0-20231003200724-09d9df9002fd
-	github.com/immutable/imx-core-sdk-golang v1.0.0
+	github.com/deadloct/immutablex-go-lib v0.0.0-20231205014945-5398b2eec818
+	github.com/immutable/imx-core-sdk-golang v1.1.0
 	github.com/sirupsen/logrus v1.9.3
 )
 
@@ -36,7 +36,7 @@ require (
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/sync v0.3.0 // indirect
-	golang.org/x/sys v0.12.0 // indirect
+	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )
