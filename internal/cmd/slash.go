@@ -18,22 +18,24 @@ const (
 	MaxOrderCount     = 5
 	DefaultOrderCount = 3
 
-	CMDHero                = "hero"
-	CMDHeroID              = "id"
-	CMDPortal              = "portal"
-	CMDPortalID            = "id"
-	CMDRates               = "rates"
-	CMDMarket              = "market"
-	CMDMarketCollection    = "collection"
-	CMDMarketStatus        = "status"
-	CMDMarketRarity        = "rarity"
-	CMDMarketOrderBy       = "order-by"
-	CMDMarketSortDirection = "sort-direction"
-	CMDMarketUser          = "user"
-	CMDMarketCount         = "count"
-	CMDMarketTokenID       = "token-id"
-	CMDMarketOutputFormat  = "output-format"
-	CMDMarketCurrency      = "currency"
+	CMDHero                   = "hero"
+	CMDHeroID                 = "id"
+	CMDPortal                 = "portal"
+	CMDPortalID               = "id"
+	CMDRates                  = "rates"
+	CMDMarket                 = "market"
+	CMDMarketCollection       = "collection"
+	CMDMarketStatus           = "status"
+	CMDMarketRarity           = "rarity"
+	CMDMarketOrderBy          = "order-by"
+	CMDMarketSortDirection    = "sort-direction"
+	CMDMarketUser             = "user"
+	CMDMarketCount            = "count"
+	CMDMarketTokenID          = "token-id"
+	CMDMarketOutputFormat     = "output-format"
+	CMDMarketOutputCurrency   = "output-currency"
+	CMDMarketBuyCurrency      = "buy-currency"
+	CMDMarketAllBuyCurrencies = "All"
 )
 
 type SlashCommands struct {
@@ -215,13 +217,24 @@ func (s *SlashCommands) setupCommands() {
 				},
 				{
 					Type:        discordgo.ApplicationCommandOptionString,
-					Name:        CMDMarketCurrency,
-					Description: "Currency for ETH conversion (Default: USD)",
+					Name:        CMDMarketOutputCurrency,
+					Description: "Output currency (Default: USD)",
 					Required:    false,
 					Choices: []*discordgo.ApplicationCommandOptionChoice{
 						{Name: "USD", Value: coinbase.FiatUSD},
 						{Name: "EUR", Value: coinbase.FiatEUR},
 						{Name: "GBP", Value: coinbase.FiatGBP},
+					},
+				},
+				{
+					Type:        discordgo.ApplicationCommandOptionString,
+					Name:        CMDMarketBuyCurrency,
+					Description: "Listing cryptocurrency (Default: ETH)",
+					Required:    false,
+					Choices: []*discordgo.ApplicationCommandOptionChoice{
+						{Name: CMDMarketAllBuyCurrencies, Value: CMDMarketAllBuyCurrencies},
+						{Name: "ETH", Value: handlers.TokenTypeETH},
+						{Name: "USDC/IMX/Other", Value: handlers.TokenTypeERC20},
 					},
 				},
 			},
@@ -313,6 +326,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 	case CMDMarket:
 		log.Debug("Handling market command")
 		cfg := &orders.ListOrdersConfig{
+			BuyTokenType:     handlers.TokenTypeETH,
 			PageSize:         DefaultOrderCount,
 			SellTokenAddress: data.BitVerseCollections["hero"].Address,
 			Status:           "active",
@@ -335,8 +349,16 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 				pageSize := int(option.IntValue())
 				cfg.PageSize = pageSize
 
-			case CMDMarketCurrency:
+			case CMDMarketOutputCurrency:
 				currency = coinbase.FiatSymbol(option.StringValue())
+
+			case CMDMarketBuyCurrency:
+				switch buyType := option.StringValue(); buyType {
+				case CMDMarketAllBuyCurrencies:
+					cfg.BuyTokenType = ""
+				case handlers.TokenTypeERC20, handlers.TokenTypeETH:
+					cfg.BuyTokenType = buyType
+				}
 
 			case CMDMarketOrderBy:
 				cfg.OrderBy = option.StringValue()

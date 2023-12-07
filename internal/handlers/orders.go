@@ -22,6 +22,9 @@ const (
 	MetadataHeroName    = "BHQ - Hero Name"
 	MetadataHeroLevel   = "BHQ - Level"
 	ImmutableUSDCSymbol = "ERC20"
+
+	TokenTypeETH   = "ETH"
+	TokenTypeERC20 = "ERC20"
 )
 
 type Metadata map[string]interface{}
