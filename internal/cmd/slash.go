@@ -9,6 +9,7 @@ import (
 	"github.com/deadloct/bitverse-nft-bot/internal/api"
 	"github.com/deadloct/bitverse-nft-bot/internal/data"
 	"github.com/deadloct/bitverse-nft-bot/internal/handlers"
+	"github.com/deadloct/bitverse-nft-bot/internal/lib/logger"
 	"github.com/deadloct/immutablex-go-lib/coinbase"
 	"github.com/deadloct/immutablex-go-lib/orders"
 	log "github.com/sirupsen/logrus"
@@ -287,7 +288,7 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 	v := i.ApplicationCommandData().Name
 	switch v {
 	case CMDRates:
-		log.Debug("Handling rates command")
+		logger.Info(sess, i.Interaction, "Handling rates command")
 		client := coinbase.GetCoinbaseClientInstance()
 
 		cryptos := []coinbase.CryptoSymbol{
@@ -308,23 +309,23 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 			currencyStrings = append(currencyStrings, str)
 		}
 
-		log.Debugf("%+v", currencyStrings)
+		logger.Debugf(sess, i.Interaction, "%+v", currencyStrings)
 		response = &discordgo.InteractionResponseData{
 			Content: strings.Join(currencyStrings, "\n"),
 		}
 
 	case CMDHero:
-		log.Debug("Handling hero command")
+		logger.Info(sess, i.Interaction, "Handling hero command")
 		id := options[0].IntValue()
 		response = s.heroesHandler.HandleCommand(fmt.Sprint(id))
 
 	case CMDPortal:
-		log.Debug("Handling portal command")
+		logger.Info(sess, i.Interaction, "Handling portal command")
 		id := options[0].IntValue()
 		response = s.portalsHandler.HandleCommand(fmt.Sprint(id))
 
 	case CMDMarket:
-		log.Debug("Handling market command")
+		logger.Info(sess, i.Interaction, "Handling market command")
 		cfg := &orders.ListOrdersConfig{
 			BuyTokenType:     handlers.TokenTypeETH,
 			PageSize:         DefaultOrderCount,
@@ -407,16 +408,17 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		if len(metadata) > 0 {
 			data, err := json.Marshal(metadata)
 			if err != nil {
-				log.Errorf("error serializing sell metadata %#v to json: %v", metadata, err)
+				logger.Errorf(sess, i.Interaction, "error serializing sell metadata %#v to json: %v", metadata, err)
 			} else {
 				cfg.SellMetadata = string(data[:])
 			}
 		}
 
-		log.Debugf("Get orders for cfg %#v", cfg)
+		logger.Debugf(sess, i.Interaction, "Get orders for cfg %#v", cfg)
 		response = s.ordersHandler.HandleCommand(cfg, format, currency)
 
 	default:
+		logger.Warnf(sess, i.Interaction, "Unknown command: %s", v)
 		response = &discordgo.InteractionResponseData{
 			Content: fmt.Sprintf("name %s is unrecognized", v),
 		}
@@ -427,6 +429,6 @@ func (s *SlashCommands) commandHandler(sess *discordgo.Session, i *discordgo.Int
 		Embeds:  &response.Embeds,
 	})
 	if err != nil {
-		log.Error(err)
+		logger.Error(sess, i.Interaction, err)
 	}
 }

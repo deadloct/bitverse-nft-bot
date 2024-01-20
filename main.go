@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal/cmd"
+
 	log "github.com/sirupsen/logrus"
 )
 

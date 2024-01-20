@@ -173,8 +173,8 @@ func (h *OrdersHandler) getEmbedForOrder(order imxapi.Order, fiatType coinbase.F
 		{Name: "Owner", Value: GetImmutascanUserURL(user) + "?tab=1&forSale=true"},
 		{Name: "Immutable Market Listing", Value: urls.ImmutableMarket},
 		{Name: "Immutascan Listing", Value: urls.Immutascan},
-		{Name: "Gamestop Listing", Value: urls.Gamestop},
 		{Name: "Rarible Listing", Value: urls.Rarible},
+		{Name: "TokenTrove Listing", Value: urls.TokenTrove},
 		{Name: "Record of Listing", Value: orderURL},
 	}
 
