@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/deadloct/bitverse-nft-bot/internal/cmd"
+	"github.com/deadloct/bitverse-nft-bot/internal/config"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -15,7 +16,9 @@ func main() {
 	log.Info("verbose logs enabled")
 	log.SetLevel(log.DebugLevel)
 
-	session, err := discordgo.New("Bot " + os.Getenv("BITVERSE_NFT_BOT_AUTH_TOKEN"))
+	config.LoadEnvFiles()
+
+	session, err := discordgo.New("Bot " + config.GetenvStr("AUTH_TOKEN"))
 	if err != nil {
 		log.Panic(err)
 	}
