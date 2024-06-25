@@ -37,10 +37,18 @@ func main() {
 	}
 	defer slash.Stop()
 
-	// Loop price check DMer
-	w := notifier.NewWatch(cm, session)
-	w.Start()
-	defer w.Stop()
+	// Loop price watchers
+	commonWatcher := notifier.NewWatcher(cm, session, []string{"Common"}, 250.0)
+	commonWatcher.Start()
+	defer commonWatcher.Stop()
+
+	rareWatcher := notifier.NewWatcher(cm, session, []string{"Rare"}, 550.0)
+	rareWatcher.Start()
+	defer rareWatcher.Stop()
+
+	epicLegMythWatcher := notifier.NewWatcher(cm, session, []string{"Epic", "Legendary", "Mythic"}, 800.0)
+	epicLegMythWatcher.Start()
+	defer epicLegMythWatcher.Stop()
 
 	log.Info("Bot is now running. Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)

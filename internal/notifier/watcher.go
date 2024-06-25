@@ -2,6 +2,7 @@ package notifier
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math"
 	"strconv"
@@ -20,11 +21,11 @@ import (
 )
 
 const (
-	Threshold     float64 = 200
-	CheckInterval         = time.Minute
-	DMTemplate            = `Cheap NFT available:
+	CheckInterval = time.Minute
+	DMTemplate    = `New cheapest NFT:
 - name: %v
 - price: %v
+- rarity: %v
 - token id: %v
 - immutascan: %v
 - immutable market: %v`
@@ -35,40 +36,59 @@ type Seen struct {
 	Price float64
 }
 
-type Watch struct {
-	clients  *api.ClientsManager
-	coinbase *coinbase.CoinbaseClient
-	sender   *DiscordSender
-	seens    []Seen
-	started  bool
-	stop     chan struct{}
-	subs     []string
+type Watcher struct {
+	clients   *api.ClientsManager
+	coinbase  *coinbase.CoinbaseClient
+	rarity    []string
+	sender    *DiscordSender
+	seens     []Seen
+	started   bool
+	stop      chan struct{}
+	subs      []string
+	threshold float64
 }
 
-func NewWatch(cm *api.ClientsManager, session *discordgo.Session) *Watch {
-	return &Watch{
-		clients:  cm,
-		coinbase: coinbase.GetCoinbaseClientInstance(),
-		sender:   NewDiscordSender(session),
-		subs:     strings.Split(config.GetenvStr("SUBSCRIBERS"), ","),
+func NewWatcher(cm *api.ClientsManager, session *discordgo.Session, rarity []string, priceThreshold float64) *Watcher {
+	return &Watcher{
+		clients:   cm,
+		coinbase:  coinbase.GetCoinbaseClientInstance(),
+		rarity:    rarity,
+		sender:    NewDiscordSender(session),
+		subs:      strings.Split(config.GetenvStr("SUBSCRIBERS"), ","),
+		threshold: priceThreshold,
 	}
 }
 
-func (w *Watch) Start() {
+func (w *Watcher) Start() error {
+	log.Infof("starting watcher %v/$%v", w.rarity, w.threshold)
+
 	if w.started {
-		return
+		log.Infof("watcher %v/$%v already started", w.rarity, w.threshold)
+		return nil
 	}
 
-	w.loop()
+	if err := w.loop(); err != nil {
+		return err
+	}
+
 	w.started = true
+	log.Infof("watcher %v/$%v started", w.rarity, w.threshold)
+	return nil
 }
 
-func (w *Watch) Stop() {
+func (w *Watcher) Stop() {
+	log.Infof("stopping watcher %v/$%v", w.rarity, w.threshold)
 	close(w.stop)
 }
 
-func (w *Watch) loop() chan struct{} {
+func (w *Watcher) loop() error {
 	w.stop = make(chan struct{}, 1)
+	rarityJSON, err := json.Marshal(w.rarity)
+	if err != nil {
+		log.Errorf("could not decode rarity: %v", err)
+		return err
+	}
+
 	cfg := &orders.ListOrdersConfig{
 		BuyTokenType:     handlers.TokenTypeETH,
 		PageSize:         10,
@@ -76,6 +96,7 @@ func (w *Watch) loop() chan struct{} {
 		Status:           "active",
 		OrderBy:          "buy_quantity_with_fees",
 		Direction:        "asc",
+		SellMetadata:     fmt.Sprintf(`{"Rarity": %s}`, rarityJSON),
 	}
 
 	w.check(cfg) // first run on startup
@@ -85,24 +106,27 @@ func (w *Watch) loop() chan struct{} {
 		for {
 			select {
 			case <-w.stop:
+				log.Infof("received stop in watcher %v/$%v", w.rarity, w.threshold)
 				ticker.Stop()
 				return
 			case <-ticker.C:
+				log.Debugf("checking watcher %v/$%v", w.rarity, w.threshold)
 				w.check(cfg)
 			}
 		}
 	}()
 
-	return w.stop
+	return nil
 }
 
-func (w *Watch) check(cfg *orders.ListOrdersConfig) {
+func (w *Watcher) check(cfg *orders.ListOrdersConfig) {
 	result, err := w.clients.OrdersClient.ListOrders(context.Background(), cfg)
 	if err != nil {
 		log.Error(err)
 	}
 
 	if len(result) == 0 {
+		log.Infof("no results returned for %v/%v", w.rarity, w.threshold)
 		return
 	}
 
@@ -121,9 +145,9 @@ func (w *Watch) check(cfg *orders.ListOrdersConfig) {
 	fiatPrice := cryptoPrice * w.coinbase.RetrieveSpotPrice(cryptoSymbol, coinbase.FiatUSD)
 	log.Infof("price of cheapest order with fees: $%0.2f", fiatPrice)
 
-	if fiatPrice <= Threshold && !w.alreadySeen(tokenID, cryptoPrice) {
+	if fiatPrice <= w.threshold && !w.alreadySeen(tokenID, cryptoPrice) {
 		priceStr := fmt.Sprintf("$%0.2f", fiatPrice)
-		msg := fmt.Sprintf(DMTemplate, name, priceStr, tokenID, urls.Immutascan, urls.ImmutableMarket)
+		msg := fmt.Sprintf(DMTemplate, name, priceStr, w.rarity, tokenID, urls.Immutascan, urls.ImmutableMarket)
 		for _, id := range w.subs {
 			if err := w.sender.SendDM(id, msg); err != nil {
 				log.Error(err)
@@ -138,7 +162,7 @@ func (w *Watch) check(cfg *orders.ListOrdersConfig) {
 	}
 }
 
-func (w *Watch) getPrice(order imxapi.Order) float64 {
+func (w *Watcher) getPrice(order imxapi.Order) float64 {
 	// Deprecated field, but updates not yet available in imx's go lib.
 	price := order.GetBuy().Data.QuantityWithFees
 	amount, err := strconv.Atoi(price)
@@ -151,7 +175,7 @@ func (w *Watch) getPrice(order imxapi.Order) float64 {
 	return float64(amount) * math.Pow10(-1*decimals)
 }
 
-func (w *Watch) getCryptoSymbol(str string) coinbase.CryptoSymbol {
+func (w *Watcher) getCryptoSymbol(str string) coinbase.CryptoSymbol {
 	if str == "ERC20" {
 		return coinbase.CryptoUSDC
 	}
@@ -159,7 +183,7 @@ func (w *Watch) getCryptoSymbol(str string) coinbase.CryptoSymbol {
 	return coinbase.CryptoSymbol(str)
 }
 
-func (w *Watch) alreadySeen(id string, price float64) bool {
+func (w *Watcher) alreadySeen(id string, price float64) bool {
 	for _, s := range w.seens {
 		if s.ID == id && s.Price == price {
 			return true
