@@ -48,8 +48,7 @@ type SlashCommands struct {
 	started        bool
 }
 
-func NewSlashCommands(session *discordgo.Session) *SlashCommands {
-	cm := api.NewClientsManager()
+func NewSlashCommands(cm *api.ClientsManager, session *discordgo.Session) *SlashCommands {
 	return &SlashCommands{
 		clientsManager: cm,
 		heroesHandler:  handlers.NewAssetMessageHandler(data.BitVerseCollections["hero"], cm),
