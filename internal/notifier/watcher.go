@@ -91,7 +91,7 @@ func (w *Watcher) loop() error {
 
 	cfg := &orders.ListOrdersConfig{
 		BuyTokenType:     handlers.TokenTypeETH,
-		PageSize:         10,
+		PageSize:         1,
 		SellTokenAddress: data.BitVerseCollections["hero"].Address,
 		Status:           "active",
 		OrderBy:          "buy_quantity_with_fees",
@@ -130,7 +130,7 @@ func (w *Watcher) check(cfg *orders.ListOrdersConfig) {
 		return
 	}
 
-	order := result[0] // just first for now
+	order := result[0]
 	data := order.Sell.GetData()
 	collection := data.GetTokenAddress()
 	tokenID := data.GetTokenId()
@@ -143,7 +143,7 @@ func (w *Watcher) check(cfg *orders.ListOrdersConfig) {
 	cryptoPrice := w.getPrice(order)
 	cryptoSymbol := w.getCryptoSymbol(order.GetBuy().Type)
 	fiatPrice := cryptoPrice * w.coinbase.RetrieveSpotPrice(cryptoSymbol, coinbase.FiatUSD)
-	log.Infof("price of cheapest order with fees: $%0.2f", fiatPrice)
+	log.Infof("price of cheapest (#%v) with fees: $%0.2f (%v %v)", tokenID, fiatPrice, cryptoPrice, cryptoSymbol)
 
 	if fiatPrice <= w.threshold && !w.alreadySeen(tokenID, cryptoPrice) {
 		priceStr := fmt.Sprintf("$%0.2f", fiatPrice)
