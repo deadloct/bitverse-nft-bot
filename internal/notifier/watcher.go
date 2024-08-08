@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	CheckInterval = time.Minute
+	CheckInterval = 10 * time.Second
 	DMTemplate    = `New cheapest NFT:
 - name: %v
 - price: %v
@@ -37,25 +37,43 @@ type Seen struct {
 }
 
 type Watcher struct {
-	clients   *api.ClientsManager
-	coinbase  *coinbase.CoinbaseClient
-	rarity    []string
-	sender    *DiscordSender
-	seens     []Seen
-	started   bool
-	stop      chan struct{}
-	subs      []string
-	threshold float64
+	clients     *api.ClientsManager
+	coinbase    *coinbase.CoinbaseClient
+	rarity      []string
+	sender      *DiscordSender
+	seens       []Seen
+	started     bool
+	stop        chan struct{}
+	userSubs    []string
+	channelSubs []string
+	threshold   float64
 }
 
 func NewWatcher(cm *api.ClientsManager, session *discordgo.Session, rarity []string, priceThreshold float64) *Watcher {
+	userIDs := strings.Split(config.GetenvStr("USER_SUBSCRIPTIONS"), ",")
+	var userSubs []string
+	for _, id := range userIDs {
+		if id != "" {
+			userSubs = append(userSubs, id)
+		}
+	}
+
+	channelIDs := strings.Split(config.GetenvStr("CHANNEL_SUBSCRIPTIONS"), ",")
+	var channelSubs []string
+	for _, id := range channelIDs {
+		if id != "" {
+			channelSubs = append(channelSubs, id)
+		}
+	}
+
 	return &Watcher{
-		clients:   cm,
-		coinbase:  coinbase.GetCoinbaseClientInstance(),
-		rarity:    rarity,
-		sender:    NewDiscordSender(session),
-		subs:      strings.Split(config.GetenvStr("SUBSCRIBERS"), ","),
-		threshold: priceThreshold,
+		clients:     cm,
+		coinbase:    coinbase.GetCoinbaseClientInstance(),
+		rarity:      rarity,
+		sender:      NewDiscordSender(session),
+		userSubs:    userSubs,
+		channelSubs: channelSubs,
+		threshold:   priceThreshold,
 	}
 }
 
@@ -143,18 +161,28 @@ func (w *Watcher) check(cfg *orders.ListOrdersConfig) {
 	cryptoPrice := w.getPrice(order)
 	cryptoSymbol := w.getCryptoSymbol(order.GetBuy().Type)
 	fiatPrice := cryptoPrice * w.coinbase.RetrieveSpotPrice(cryptoSymbol, coinbase.FiatUSD)
-	log.Infof("price of cheapest (#%v) with fees: $%0.2f (%v %v)", tokenID, fiatPrice, cryptoPrice, cryptoSymbol)
 
 	if fiatPrice <= w.threshold && !w.alreadySeen(tokenID, cryptoPrice) {
+		log.Infof("new cheapest (#%v) with fees: $%0.2f (%v %v)", tokenID, fiatPrice, cryptoPrice, cryptoSymbol)
+
 		priceStr := fmt.Sprintf("$%0.2f", fiatPrice)
 		msg := fmt.Sprintf(DMTemplate, name, priceStr, w.rarity, tokenID, urls.Immutascan, urls.ImmutableMarket)
-		for _, id := range w.subs {
+		for _, id := range w.userSubs {
 			if err := w.sender.SendDM(id, msg); err != nil {
 				log.Error(err)
 				continue
 			}
 
-			log.Infof("sent notification about item %v (%v) priced at %v to %v", name, tokenID, priceStr, id)
+			log.Infof("sent notification about item %v (%v) priced at %v to user %v", name, tokenID, priceStr, id)
+		}
+
+		for _, id := range w.channelSubs {
+			if err := w.sender.SendChannel(id, msg); err != nil {
+				log.Error(err)
+				continue
+			}
+
+			log.Infof("sent notification about item %v (%v) priced at %v to channel %v", name, tokenID, priceStr, id)
 		}
 
 		w.seens = append(w.seens, Seen{ID: tokenID, Price: cryptoPrice})

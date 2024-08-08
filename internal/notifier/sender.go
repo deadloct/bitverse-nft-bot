@@ -16,6 +16,11 @@ func NewDiscordSender(session *discordgo.Session) *DiscordSender {
 	}
 }
 
+func (s *DiscordSender) SendChannel(channelID, msg string) error {
+	_, err := s.session.ChannelMessageSend(channelID, msg)
+	return err
+}
+
 func (s *DiscordSender) SendDM(userID, msg string) error {
 	dmChannel, err := s.session.UserChannelCreate(userID)
 	if err != nil {
